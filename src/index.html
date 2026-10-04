@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aim Tracker</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@property --hue{syntax:"<number>";inherits:true;initial-value:0}
+@keyframes spin{to{--hue:360}}
+html{animation:spin var(--speed,10s) linear infinite}
+html.static{animation:none}
+:root{--bg:#0e1015;--win:#171a21;--panel:#1b1e26;--line:#2c303a;--txt:#d8dbe2;--dim:#7d8390;
+--sat:60%;--lit:58%;--sp:210;
+--c1:hsl(var(--hue) var(--sat) var(--lit));
+--c2:hsl(calc(var(--hue) + var(--sp) * .33) var(--sat) var(--lit));
+--c3:hsl(calc(var(--hue) + var(--sp) * .66) var(--sat) var(--lit));
+--c4:hsl(calc(var(--hue) + var(--sp)) var(--sat) var(--lit));
+--rgb:linear-gradient(90deg,var(--c1),var(--c2),var(--c3),var(--c4))}
+html.sat{--sat:100%;--lit:50%}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:13px Consolas,"Lucida Console",monospace;min-height:100vh;padding:14px}
+.win{max-width:1000px;margin:0 auto;background:var(--win);border:1px solid #0a0b0f;box-shadow:0 0 0 6px #14161c,0 10px 40px #000a;padding-bottom:16px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px;position:relative;flex-wrap:wrap;gap:8px}
+.top:after{content:'';position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--rgb)}
+.top h1{margin:0;font-size:16px;font-weight:400}
+.tabs span{margin-left:14px;color:var(--dim);cursor:pointer;font-size:15px;padding-bottom:9px;border-bottom:3px solid transparent}
+.tabs span.on{color:#fff;border-color:var(--c1)}.tabs span:hover{color:#fff}
+.strip{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:10px 16px;color:var(--dim);border-bottom:1px solid var(--line)}
+.strip b{font-weight:400;color:var(--txt)}
+.dot{display:inline-block;width:9px;height:9px;margin-right:6px;background:#3a3e48}.dot.on{background:var(--rgb)}
+.page{display:none;padding:14px 16px 0}.page.on{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:14px}
+fieldset{border:1px solid var(--line);margin:0;padding:6px 12px 12px;background:var(--panel);min-width:0;--c:var(--c1)}
+fieldset:nth-child(3n+2){--c:var(--c2)}fieldset:nth-child(3n){--c:var(--c3)}
+legend{padding:0 4px;color:var(--c);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row{display:flex;justify-content:space-between;gap:8px;margin:5px 0;color:#cfd2da}.row span:first-child{color:var(--dim)}
+.bar{height:15px;background:#0f1116;position:relative;margin:8px 0 4px}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--rgb);background-size:var(--w,100%) 100%;background-repeat:no-repeat;width:var(--p,0%);overflow:hidden}
+.bar i:after{content:'';position:absolute;right:0;top:0;bottom:0;width:6px;background:#8b8f98}
+.bar.big{height:22px}
+.rank{font-size:17px;margin:4px 0}
+.small{color:var(--dim);font-size:11px;line-height:1.4}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+button,.btn{background:#10121a;border:1px solid var(--line);color:#fff;font:inherit;padding:5px 10px;cursor:pointer}
+button:hover{background:var(--c1);color:#000;border-color:var(--c1)}
+button.pri{border-color:var(--c1)}
+input[type=text],input[type=number],select,textarea{background:#0f1116;border:1px solid var(--line);color:#fff;font:inherit;padding:4px 6px;min-width:0}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--c1)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;user-select:none;color:#cfd2da}
+.chk i{width:13px;height:13px;background:#2a2d36;display:inline-block}.chk.on i{background:var(--rgb)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:17px;margin:4px 0 8px;background:linear-gradient(#0f1116,#0f1116) 100% 0/calc(100% - var(--p,50%)) 100% no-repeat,var(--rgb);display:block}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:6px;height:17px;background:#8b8f98}
+.lbl{display:flex;justify-content:space-between;color:#cfd2da}
+.modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:9;padding:14px}
+.modal.on{display:flex}
+.modal .box{background:var(--win);border:1px solid var(--line);width:min(560px,100%);max-height:92vh;overflow:auto;position:relative;padding:18px 16px 14px}
+.modal .box:before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:var(--rgb)}
+.modal h2{margin:2px 0 10px;font-size:15px;font-weight:400}
+.rk{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;align-items:center;margin:10px 0}
+.rk input{width:100%}
+.tag{display:inline-block;padding:0 6px;border:1px solid currentColor;font-size:11px;margin-left:6px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#000;border:1px solid var(--c1);padding:7px 14px;opacity:0;transition:.2s;pointer-events:none;z-index:20;max-width:90vw}
+.toast.on{opacity:1}
+.spark{width:100%;height:46px;display:block;margin-top:8px;background:#0f1116}
+.list .it{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);padding:7px 9px;margin-top:6px;background:#14171d}
+.list .it small{color:var(--dim);display:block}
+.empty{color:var(--dim);padding:24px 0;text-align:center}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 10px;margin:6px 0}.kv span:first-child{color:var(--dim)}.kv span{overflow-wrap:anywhere}
+.clist{display:flex;flex-direction:column;gap:4px;margin-top:14px}
+.crow{display:grid;grid-template-columns:minmax(320px,3.6fr) 60px 52px 96px minmax(130px,1.3fr) 168px;gap:10px;align-items:center;padding:5px 10px;background:var(--panel);border:1px solid var(--line);min-width:0}
+.crow>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crow.chead{background:none;border-color:transparent;color:var(--dim);font-size:11px;padding-top:0;padding-bottom:0}
+.crow:not(.chead):hover{border-color:var(--c1)}
+.cname{color:#fff}.dim{color:var(--dim)}
+.cprog{display:flex;align-items:center;gap:8px}.cprog .bar{flex:1;margin:0;height:9px;min-width:50px}.cprog .small{white-space:nowrap}
+.cbtn{display:flex;gap:4px}.cbtn button{padding:2px 8px}
+@media(max-width:760px){.crow{grid-template-columns:1fr auto}.crow>span:nth-child(2),.crow>span:nth-child(3),.crow>span:nth-child(4),.crow.chead{display:none}.cprog{grid-column:1/-1}}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px}
+.chip{display:inline-block;padding:0 6px;font-size:11px;border:1px solid currentColor;white-space:nowrap;flex-shrink:0;line-height:17px}
+.chip.sub{border-style:dashed}.chip.dif{color:var(--dim)}
+.cname{display:flex;align-items:center;gap:8px;overflow:hidden}.cname .nm{overflow:hidden;text-overflow:ellipsis;color:#fff}
+.stellar{position:relative;display:inline-block;isolation:isolate;overflow:hidden;padding:0 9px;color:#ffe98a;text-shadow:0 0 6px #ffd84d77;border:1px solid #1d2a6b;
+  background:radial-gradient(90px 34px at 12% -30%,rgba(58,92,196,.5),transparent 70%),linear-gradient(180deg,#050817,#0a1133 60%,#0e1844)}
+.stellar::before,.stellar::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none}
+.stellar::before{background-image:radial-gradient(1px 1px at 6px 5px,#ffe98a 50%,transparent 52%),radial-gradient(1px 1px at 27px 15px,#fff6c9 50%,transparent 52%),radial-gradient(1.3px 1.3px at 44px 7px,#ffd84d 50%,transparent 52%),radial-gradient(1px 1px at 61px 17px,#ffe98a 50%,transparent 52%);background-size:72px 22px;animation:twk 3.6s ease-in-out infinite alternate}
+.stellar::after{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='84' height='24'><g fill='%23ffd84d'><path d='M12 7Q12 12 17 12Q12 12 12 17Q12 12 7 12Q12 12 12 7Z'/><path opacity='.7' d='M47 4Q47 7 50 7Q47 7 47 10Q47 7 44 7Q47 7 47 4Z'/><path opacity='.85' d='M70 12Q70 17 75 17Q70 17 70 22Q70 17 65 17Q70 17 70 12Z'/></g></svg>");background-size:84px 24px;animation:twk 5s ease-in-out -2s infinite alternate}
+@keyframes twk{from{opacity:.35}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.stellar::before,.stellar::after{animation:none}}
+.play{cursor:pointer}.play:hover{text-decoration:underline;color:#fff}
+.games{display:flex;border-bottom:1px solid var(--line);background:#14171d}
+.games span{flex:1;text-align:center;padding:10px 6px;cursor:pointer;color:var(--dim);font-size:15px;border-bottom:3px solid transparent;user-select:none}
+.games span:hover{color:#fff}
+.games span.on{color:#fff;border-image:var(--rgb) 1;border-bottom:3px solid;background:#1a1e26}
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="top"><h1 id="appTitle">Aim Tracker</h1>
+    <div class="tabs"><span class="on" data-p="trk">Tracker</span><span data-p="rec">Recent</span><span data-p="acc">Account</span><span data-p="vis">Settings</span></div></div>
+  <div class="games"><span data-g="kv" class="on">KovaaK's</span><span data-g="al">Aimlabs</span></div>
+  <div class="strip"><span><i class="dot" id="kvDot"></i><b id="kvTxt">KovaaK's</b></span><span id="lastTxt">Last played: -</span><span id="lastAdd"></span><span id="updBar"></span></div>
+
+  <!-- TRACKER -->
+  <div class="page on" id="trk">
+    <fieldset id="overall"><legend>Overall Rank</legend>
+      <div class="rank" id="ovRank">Unranked</div>
+      <div class="bar big"><i id="ovBar"></i></div>
+      <div class="small" id="ovSub">Add scenarios and set their rank thresholds.</div>
+      <div class="small" id="ovCats" style="margin-top:6px"></div>
+    </fieldset>
+    <div class="toolbar" style="margin-top:12px">
+      <span class="small">Sort</span>
+      <select id="sort"><option value="recent">Recently played</option><option value="name">Name</option><option value="rank">Rank (high first)</option><option value="prog">Progress to next</option><option value="cat">Category</option></select>
+      <select id="catF"><option value="">All categories</option><option>Clicking</option><option>Tracking</option><option value="Switching">Target Switching</option><option value="Other">Other</option><option value="none">Uncategorised</option></select>
+      <input type="text" id="filter" placeholder="filter...">
+      <button id="viewTgl" title="Switch between cards and a condensed list">List view</button>
+      <button id="plAll" class="pri" title="Make a playlist of everything shown here and open it in the game">Open all as playlist</button>
+    </div>
+    <div class="grid" id="cards"></div>
+    <div class="empty" id="trkEmpty">No scenarios tracked yet. Play one in KovaaK's and you'll be asked, or add one from the Recent tab.</div>
+  </div>
+
+  <!-- RECENT -->
+  <div class="page" id="rec">
+    <fieldset><legend>Recently played (from your KovaaK's stats)</legend>
+      <div class="small">Scenarios found in your stats folder, newest first. Add the ones you want to track - your past runs get imported.</div>
+      <input type="text" id="recFilter" placeholder="filter..." style="margin-top:8px;width:100%">
+      <div class="list" id="recList"></div>
+    </fieldset>
+  </div>
+
+  <!-- ACCOUNT -->
+  <div class="page" id="acc">
+    <fieldset><legend>Steam</legend>
+      <div class="kv"><span>Persona</span><span id="aPersona">-</span>
+        <span>Steam account</span><span id="aAcct">-</span>
+        <span>SteamID64</span><span id="aId">-</span>
+        <span>Steam running</span><span id="aSteam">-</span></div>
+      <div class="btns"><button id="aOpen">Open Steam profile</button><button id="aRef">Re-detect</button></div>
+    </fieldset>
+    <fieldset style="margin-top:14px"><legend>Aimlabs</legend>
+      <div class="kv"><span>Data folder</span><span id="aAl">-</span>
+        <span>Aimlabs user id</span><span id="aAlUser">-</span>
+        <span>Linked Steam ID</span><span id="aAlSteam">-</span>
+        <span>Local database</span><span id="aAlDb">-</span></div>
+      <div class="small">Aimlabs signs in through Steam too. Task scores are read straight from its local database (read-only).</div>
+    </fieldset>
+    <fieldset style="margin-top:14px"><legend>KovaaK's</legend>
+      <div class="kv"><span>Install</span><span id="aKv">-</span>
+        <span>Stats folder</span><span id="aStats">-</span>
+        <span>Linked account</span><span id="aLinked">KovaaK's signs in through Steam, so it uses the Steam account above.</span></div>
+      <div class="lbl" style="margin-top:10px"><span>Your KovaaK's username (optional label)</span></div>
+      <input type="text" id="ksUser" style="width:100%;margin-top:4px" placeholder="e.g. your KovaaK's name">
+      <div class="btns"><button id="aBrowse">Choose stats folder...</button></div>
+    </fieldset>
+  </div>
+
+  <!-- VISUALS -->
+  <div class="page" id="vis">
+    <fieldset><legend>Rainbow</legend>
+      <div class="chk" id="vAnim"><i></i>Animate gradient</div>
+      <div class="chk" id="vSat"><i></i>Saturated (max vibrance)</div>
+      <div class="lbl"><span>Animation speed</span><span id="vSpeedN"></span></div>
+      <input type="range" id="vSpeed" min="2" max="40" step="1">
+      <div class="lbl"><span>Saturation</span><span id="vSatN"></span></div>
+      <input type="range" id="vSatR" min="15" max="100" step="1">
+      <div class="lbl"><span>Gradient spread</span><span id="vSpN"></span></div>
+      <input type="range" id="vSp" min="30" max="330" step="5">
+      <div class="lbl"><span>Static hue (when not animating)</span><span id="vHueN"></span></div>
+      <input type="range" id="vHue" min="0" max="360" step="1">
+    </fieldset>
+    <fieldset style="margin-top:14px"><legend>Cards</legend>
+      <div class="chk" id="vRankCol"><i></i>Colour rank names by tier</div>
+      <div class="chk" id="vCond"><i></i>Condensed list view (one line per scenario)</div>
+      <div class="chk" id="vSpark"><i></i>Show run history graph on cards</div>
+    </fieldset>
+    <fieldset style="margin-top:14px"><legend>Rank distribution</legend>
+      <div class="small">Share of all players at each rank or better ("top X%"). Used by <b>Rank distribution</b> in the Ranks editor. Beginner scenarios use ranks 1-4 (Wool to Stellar), Intermediate 5-8, Expert 9-12.</div>
+      <div class="rk" id="distGrid" style="grid-template-columns:100px 1fr 100px 1fr"></div>
+      <div class="chk" id="vDistScale"><i></i>Scale for each tier's audience</div>
+      <div class="small">Intermediate and Expert scenarios are mostly played by people who already cleared the tier below, so top 30% of <i>everyone</i> is a bigger slice of that scenario's own leaderboard. Audience = share of all players who play that tier (default: everyone who reached the top rank of the tier below).</div>
+      <div class="rk" id="audGrid" style="grid-template-columns:130px 1fr 130px 1fr"></div>
+      <div class="small" id="distPrev" style="margin-top:6px;line-height:1.6"></div>
+      <div class="btns"><button id="distReset">Reset to default</button></div>
+    </fieldset>
+    <fieldset style="margin-top:14px"><legend>Updates</legend>
+      <div class="small" id="updMsg">Version -</div>
+      <div class="chk on" id="vAutoUpd"><i></i>Check for updates when the app starts</div>
+      <div class="chk on" id="vAutoInst"><i></i>Install updates automatically (the app restarts)</div>
+      <div class="small">Updates come from this app's GitHub releases. The installer is checked against its published SHA-256 before it runs.</div>
+      <div class="btns"><button id="updCheck">Check now</button><button id="updBtn" class="pri" style="display:none">Install update</button></div>
+      <div class="small" id="updNotes" style="margin-top:8px;white-space:pre-wrap"></div>
+    </fieldset>
+    <fieldset style="margin-top:14px"><legend>Data</legend>
+      <div class="btns"><button id="dExp">Export JSON</button><button id="dImp">Import JSON</button></div>
+      <textarea id="dBox" style="width:100%;height:100px;margin-top:8px" spellcheck="false"></textarea>
+    </fieldset>
+  </div>
+</div>
+
+<!-- add prompt -->
+<div class="modal" id="mAdd"><div class="box">
+  <h2>New scenario detected <span class="tag" id="mAddGame" style="color:var(--c2)"></span></h2>
+  <div class="rank" id="mAddName" style="overflow-wrap:anywhere"></div>
+  <div class="small" id="mAddSub"></div>
+  <div class="small" style="margin-top:8px">Add it to your tracker? Your previous runs of it will be imported.</div>
+  <div class="btns"><button class="pri" id="mAddYes">Add to tracker</button><button id="mAddLater">Not now</button><button id="mAddNever">Never ask for this one</button></div>
+</div></div>
+
+<!-- rank editor -->
+<div class="modal" id="mRank"><div class="box">
+  <h2 id="mRankTitle">Rank thresholds</h2>
+  <div class="small">Minimum score for each rank. Paste a list, or fill the first and last and let it space the rest.</div>
+  <div class="toolbar" style="margin:8px 0 2px"><span class="small">Category</span>
+    <select id="mCat"><option value="">Auto</option><option>Clicking</option><option>Tracking</option><option value="Switching">Target Switching</option><option>Other</option></select>
+    <span class="small">Sub</span>
+    <select id="mSub"><option value="">Auto</option><option>Dynamic</option><option>Static</option><option>Linear</option><option>Precise</option><option>Reactive</option><option>Control</option><option>Speed</option><option>Evasive</option><option>Stability</option></select></div>
+  <div class="rk" id="rkGrid"></div>
+  <fieldset style="margin:4px 0 10px"><legend>Create by percentile</legend>
+    <div class="small">Wool = the low percentile, Celestial = the high one, the rest spaced evenly in between.</div>
+    <div class="toolbar" style="margin-top:8px">
+      <select id="pcSrc"><option value="mine">From my runs of this scenario</option><option value="lb" id="pcLb">From the KovaaK's leaderboard (online)</option><option value="paste">From pasted scores</option></select>
+      <span class="small">Wool</span><input type="number" id="pcLo" value="10" min="0" max="100" step="any" style="width:64px">
+      <span class="small">Celestial</span><input type="number" id="pcHi" value="99" min="0" max="100" step="any" style="width:64px">
+      <span class="small">percentile</span>
+    </div>
+    <div class="toolbar" style="margin-top:8px">
+      <select id="pcMode"><option value="dist">Rank distribution (tier-aware)</option><option value="list">Top-% list (Wool first)</option><option value="even">Evenly spaced Wool-Celestial</option></select>
+      <input type="text" id="pcList" value="99, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 1" style="flex:1;min-width:240px" title="12 values: the top-% cutoff for Wool, Warm Wool ... Celestial">
+    </div>
+    <div id="pcTierRow" style="margin-top:8px">
+      <div class="toolbar"><span class="small">Tier of this scenario</span>
+        <select id="pcTier"><option value="0">Beginner (Wool - Stellar)</option><option value="1">Intermediate (Platinum - Master)</option><option value="2">Expert (Grandmaster - Celestial)</option></select>
+        <span class="small" id="pcTierNote"></span></div>
+      <div class="chk on" id="pcExt" style="margin:6px 0 2px"><i></i>Extend to all 12 ranks</div>
+      <div class="small" id="pcTierPrev" style="margin-top:4px"></div>
+    </div>
+    <div class="small" id="pcListNote" style="margin-top:4px">Top-% list: "10" means the score you need to be in the top 10% of players. The first 10 are 99 to 10; Astra and Celestial use 5 and 1.</div>
+    <textarea id="pcPaste" style="width:100%;height:56px;margin-top:8px;display:none" placeholder="paste scores separated by spaces / commas / new lines"></textarea>
+    <div class="small" id="pcInfo" style="margin-top:6px"></div>
+    <div class="btns"><button id="pcGo">Generate thresholds</button></div>
+  </fieldset>
+  <fieldset id="bmBox" style="margin:4px 0 10px"><legend>Benchmarks (evxl.app)</legend>
+    <div class="small">Check whether this scenario is part of a benchmark listed on evxl.app, and import that benchmark's rank boundaries for it. Each difficulty is its own scenario, so you get that difficulty's ranks (e.g. Novice = Wool to Stellar).</div>
+    <div class="btns"><button id="bmCheck">Check benchmarks</button><button id="bmRefresh" title="Download the benchmark list again">Refresh list</button></div>
+    <div class="list" id="bmOut"></div>
+  </fieldset>
+  <textarea id="rkPaste" style="width:100%;height:56px" placeholder="paste 12 numbers separated by spaces / commas / new lines"></textarea>
+  <div class="toolbar" style="margin-top:8px"><button id="rkFill">Space evenly from Wool to Celestial</button><button id="rkPasteB">Apply pasted list</button></div>
+  <div class="btns"><button class="pri" id="rkSave">Save</button><button id="rkCancel">Cancel</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const RANKS=["Iron","Bronze","Silver","Gold","Platinum","Diamond","Jade","Master","Grandmaster","Nova","Astra","Celestial"];   // internal ids = Voltaic's names (benchmarks use them)
+const DN={Iron:"Wool",Bronze:"Warm Wool",Silver:"Lavender",Gold:"Stellar"};   // what you see
+const dn=n=>DN[n]||n;
+const RN=RANKS.map(dn);
+const RCOL=["#eee6d3","#a89f94","#c3b1ff","#ffd84d","#4fd1c5","#5aa8ff","#37d67a","#b36bff","#ff5a6b","#ff6bd6","#6bf0ff",null];
+const GAMES={kv:"KovaaK's",al:"Aimlabs"};
+// Voltaic Season 5 benchmark scenarios: name -> [difficulty, category, subcategory, name]
+const VT={"vt pasu novice s5":["Novice","Clicking","Dynamic","VT Pasu Novice S5"],"vt popcorn novice s5":["Novice","Clicking","Dynamic","VT Popcorn Novice S5"],"vt 1w4ts novice s5":["Novice","Clicking","Static","VT 1w4ts Novice S5"],"vt ww5t novice s5":["Novice","Clicking","Static","VT ww5t Novice S5"],"vt frogtagon novice s5":["Novice","Clicking","Linear","VT Frogtagon Novice S5"],"vt floating heads novice s5":["Novice","Clicking","Linear","VT Floating Heads Novice S5"],"vt pgt novice s5":["Novice","Tracking","Precise","VT PGT Novice S5"],"vt snake track novice s5":["Novice","Tracking","Precise","VT Snake Track Novice S5"],"vt aether novice s5":["Novice","Tracking","Reactive","VT Aether Novice S5"],"vt ground novice s5":["Novice","Tracking","Reactive","VT Ground Novice S5"],"vt raw control novice s5":["Novice","Tracking","Control","VT Raw Control Novice S5"],"vt controlsphere novice s5":["Novice","Tracking","Control","VT Controlsphere Novice S5"],"vt dotts novice s5":["Novice","Switching","Speed","VT DotTS Novice S5"],"vt eddiets novice s5":["Novice","Switching","Speed","VT EddieTS Novice S5"],"vt driftts novice s5":["Novice","Switching","Evasive","VT DriftTS Novice S5"],"vt flyts novice s5":["Novice","Switching","Evasive","VT FlyTS Novice S5"],"vt controlts novice s5":["Novice","Switching","Stability","VT ControlTS Novice S5"],"vt penta bounce novice s5":["Novice","Switching","Stability","VT Penta Bounce Novice S5"],"vt pasu intermediate s5":["Intermediate","Clicking","Dynamic","VT Pasu Intermediate S5"],"vt popcorn intermediate s5":["Intermediate","Clicking","Dynamic","VT Popcorn Intermediate S5"],"vt 1w3ts intermediate s5":["Intermediate","Clicking","Static","VT 1w3ts Intermediate S5"],"vt ww5t intermediate s5":["Intermediate","Clicking","Static","VT ww5t Intermediate S5"],"vt frogtagon intermediate s5":["Intermediate","Clicking","Linear","VT Frogtagon Intermediate S5"],"vt floating heads intermediate s5":["Intermediate","Clicking","Linear","VT Floating Heads Intermediate S5"],"vt pgt intermediate s5":["Intermediate","Tracking","Precise","VT PGT Intermediate S5"],"vt snake track intermediate s5":["Intermediate","Tracking","Precise","VT Snake Track Intermediate S5"],"vt aether intermediate s5":["Intermediate","Tracking","Reactive","VT Aether Intermediate S5"],"vt ground intermediate s5":["Intermediate","Tracking","Reactive","VT Ground Intermediate S5"],"vt raw control intermediate s5":["Intermediate","Tracking","Control","VT Raw Control Intermediate S5"],"vt controlsphere intermediate s5":["Intermediate","Tracking","Control","VT Controlsphere Intermediate S5"],"vt dotts intermediate s5":["Intermediate","Switching","Speed","VT DotTS Intermediate S5"],"vt eddiets intermediate s5":["Intermediate","Switching","Speed","VT EddieTS Intermediate S5"],"vt driftts intermediate s5":["Intermediate","Switching","Evasive","VT DriftTS Intermediate S5"],"vt flyts intermediate s5":["Intermediate","Switching","Evasive","VT FlyTS Intermediate S5"],"vt controlts intermediate s5":["Intermediate","Switching","Stability","VT ControlTS Intermediate S5"],"vt penta bounce intermediate s5":["Intermediate","Switching","Stability","VT Penta Bounce Intermediate S5"],"vt pasu advanced s5":["Advanced","Clicking","Dynamic","VT Pasu Advanced S5"],"vt popcorn advanced s5":["Advanced","Clicking","Dynamic","VT Popcorn Advanced S5"],"vt 1w2ts advanced s5":["Advanced","Clicking","Static","VT 1w2ts Advanced S5"],"vt ww5t advanced s5":["Advanced","Clicking","Static","VT ww5t Advanced S5"],"vt frogtagon advanced s5":["Advanced","Clicking","Linear","VT Frogtagon Advanced S5"],"vt floating heads advanced s5":["Advanced","Clicking","Linear","VT Floating Heads Advanced S5"],"vt pgt advanced s5":["Advanced","Tracking","Precise","VT PGT Advanced S5"],"vt snake track advanced s5":["Advanced","Tracking","Precise","VT Snake Track Advanced S5"],"vt aether advanced s5":["Advanced","Tracking","Reactive","VT Aether Advanced S5"],"vt ground advanced s5":["Advanced","Tracking","Reactive","VT Ground Advanced S5"],"vt raw control advanced s5":["Advanced","Tracking","Control","VT Raw Control Advanced S5"],"vt controlsphere advanced s5":["Advanced","Tracking","Control","VT Controlsphere Advanced S5"],"vt dotts advanced s5":["Advanced","Switching","Speed","VT DotTS Advanced S5"],"vt eddiets advanced s5":["Advanced","Switching","Speed","VT EddieTS Advanced S5"],"vt driftts advanced s5":["Advanced","Switching","Evasive","VT DriftTS Advanced S5"],"vt flyts advanced s5":["Advanced","Switching","Evasive","VT FlyTS Advanced S5"],"vt controlts advanced s5":["Advanced","Switching","Stability","VT ControlTS Advanced S5"],"vt penta bounce advanced s5":["Advanced","Switching","Stability","VT Penta Bounce Advanced S5"]};
+
+const CCOL={Clicking:"#ff9a9a",Tracking:"#7fc4ff",Switching:"#c79bff",Other:"#9aa0aa"};
+const nb=s=>s.toLowerCase().replace(/\b(novice|intermediate|advanced)\b/g,"").replace(/\bs\d+(\.\d+)?\b/g,"").replace(/^vt\s+/,"").replace(/[^a-z0-9]/g,"");
+const VTB={};for(const k in VT)VTB[nb(VT[k][3])]=VT[k];
+function normCat(x){if(!x)return null;const s=String(x).toLowerCase();if(s.includes("click"))return"Clicking";if(s.includes("track"))return"Tracking";if(s.includes("switch"))return"Switching";if(s==="other")return"Other";return null}
+// {cat,sub,diff,src}: your manual choice > Voltaic S5 list > KovaaK's own scenario type > name guess (Aimlabs)
+function categoryOf(game,t,name){
+  let r=null;const lo=name.toLowerCase();
+  if(game==="kv"){
+    const v=VT[lo]||VTB[nb(name)];
+    if(v)r={cat:v[1],sub:v[2],diff:VT[lo]?v[0]:null,src:"voltaic"};
+    else{const c=D.catCache&&D.catCache[name];if(c&&c.type)r={cat:c.type,sub:null,diff:null,src:"kovaaks"}}
+  }else{
+    const g=/track/.test(lo)?"Tracking":/switch/.test(lo)?"Switching":/(flick|shot|click|micro|sniper)/.test(lo)?"Clicking":null;
+    if(g)r={cat:g,sub:null,diff:null,src:"guess"};
+  }
+  r=r||{cat:null,sub:null,diff:null,src:null};
+  if(t&&t.cat){r.cat=t.cat;r.src="manual"}
+  if(t&&t.sub)r.sub=t.sub;
+  return r;
+}
+function chipsHtml(ct,short){
+  if(!ct||!ct.cat)return'<span class="chip" style="color:var(--dim)" title="No category found - set one in Ranks">uncategorised</span>';
+  const c=CCOL[ct.cat]||CCOL.Other,src={voltaic:"Voltaic Season 5 benchmark list",kovaaks:"KovaaK's scenario type",manual:"set by you",guess:"guessed from the name"}[ct.src]||"";
+  const label=ct.cat==="Switching"&&!short?"Target Switching":ct.cat;
+  return`<span class="chip" style="color:${c}" title="${src}">${label}</span>`+(ct.sub?`<span class="chip sub" style="color:${c}" title="${src}">${ct.sub}</span>`:"")+(ct.diff&&!short?`<span class="chip dif" title="Voltaic S5 difficulty">${ct.diff}</span>`:"");
+}
+// ask KovaaK's for the scenario type of tracked scenarios that Voltaic's list doesn't cover
+async function fetchCategories(){
+  if(!bridge)return;
+  const tr=G("kv").tracked,need=[];
+  for(const k in tr){const n=dispName(k,tr[k]);
+    if(tr[k].cat||VT[n.toLowerCase()]||VTB[nb(n)])continue;
+    const c=D.catCache[n];if(c&&Date.now()-c.t<14*864e5)continue;need.push(n)}
+  if(!need.length)return;
+  const r=await call("category",{names:need.slice(0,40)});
+  if(!r||r.error)return;
+  for(const n of Object.keys(r))D.catCache[n]={type:normCat(r[n]),t:Date.now()};
+  save();render();
+}
+const DEFAULTS={speed:10,sat:60,sp:210,hue:0,anim:true,saturated:false,rankCol:true,spark:true,condensed:false,dist:null,aud:null,distScale:true,pcExtend:true,autoUpdate:true,autoInstall:true,lastUpdateTry:""};
+let shownRows=[];
+const blank=()=>({kv:{tracked:{},ignored:[]},al:{tracked:{},ignored:[]}});
+let D={settings:{...DEFAULTS},game:"kv",byGame:blank(),ksUser:"",catCache:{}};
+let runsAll={kv:[],al:[]},acct={},status={},queue=[],editing=null,prompting=null;
+const G=(g)=>D.byGame[g||D.game];
+const keyOf=r=>r.k||r.n;
+function normalize(x){
+  const o={settings:{...DEFAULTS,...(x.settings||{})},game:x.game==="al"?"al":"kv",byGame:blank(),ksUser:x.ksUser||"",catCache:x.catCache||{}};
+  if(x.byGame){for(const g of ["kv","al"])if(x.byGame[g])o.byGame[g]={tracked:x.byGame[g].tracked||{},ignored:x.byGame[g].ignored||[]}}
+  else if(x.tracked){o.byGame.kv={tracked:x.tracked,ignored:x.ignored||[]}}   // data from before Aimlabs support
+  return o;
+}
+
+// ---------- host bridge ----------
+const bridge=(function(){const w=window.chrome&&window.chrome.webview;if(!w)return null;const pend={};let n=0;let evH=null;
+ w.addEventListener("message",e=>{const m=e.data;if(m&&m.event){evH&&evH(m);return}if(m&&pend[m.id]){pend[m.id](m.result);delete pend[m.id]}});
+ const call=(cmd,data)=>new Promise(r=>{const id=++n;pend[id]=r;w.postMessage({id,cmd,data})});
+ return{call,onEvent:f=>evH=f}})();
+const call=(c,d)=>bridge?bridge.call(c,d):Promise.resolve(null);
+let saveT=null;const save=()=>{clearTimeout(saveT);saveT=setTimeout(()=>call("save",JSON.stringify(D)),300)};
+function toast(m,ms=2200){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),ms)}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtScore=v=>Number.isInteger(v)?String(v):(+v.toFixed(1)).toString();
+const ago=t=>{const s=(Date.now()-t)/1000;if(s<90)return"just now";if(s<3600)return Math.round(s/60)+"m ago";if(s<86400)return Math.round(s/3600)+"h ago";return Math.round(s/86400)+"d ago"};
+const dispName=(k,t)=>(t&&t.name)||k;
+
+// ---------- ranks ----------
+function rankInfo(thr,score){
+  if(!thr||thr.length!==12)return null;
+  const f=[];thr.forEach((x,k)=>{if(typeof x==="number"&&x>=0)f.push(k)});
+  if(f.length<2)return null;
+  const lo=f[0],hi=f[f.length-1];
+  let idx=-1;for(const k of f)if(score>=thr[k])idx=k;
+  let prog;
+  if(idx<0)prog=thr[lo]>0?Math.max(0,score/thr[lo]):0;
+  else if(idx===hi)prog=1;
+  else prog=Math.min(1,Math.max(0,(score-thr[idx])/(thr[idx+1]-thr[idx]||1)));
+  return{idx,prog,pts:(idx+1)+(idx===hi?0:prog),next:idx<hi?thr[idx+1]:null,cur:idx>=0?thr[idx]:0,hi};
+}
+function rankHtml(idx){
+  const name=idx<0?"Unranked":RN[idx];
+  if(idx===3&&D.settings.rankCol)return`<span class="stellar">${name}</span>`;
+  if(idx===11&&D.settings.rankCol)return`<span style="background:var(--rgb);-webkit-background-clip:text;color:transparent">${name}</span>`;
+  const c=(D.settings.rankCol&&idx>=0)?RCOL[idx]:null;
+  return`<span${c?` style="color:${c}"`:""}>${name}</span>`;
+}
+function pb(t){return t.runs.length?Math.max(...t.runs.map(r=>r.s)):null}
+
+// ---------- tracker view ----------
+function setBar(el,frac){el.style.setProperty("--p",(Math.max(0,Math.min(1,frac))*100)+"%");el.style.setProperty("--w",(el.parentElement.clientWidth)+"px")}
+function sparkSvg(runs){
+  const r=runs.slice(-30);if(r.length<2)return"";
+  const ys=r.map(x=>x.s),mn=Math.min(...ys),mx=Math.max(...ys),W=300,H=46,sp=mx-mn||1;
+  const pts=r.map((x,i)=>`${(i/(r.length-1)*(W-6)+3).toFixed(1)},${(H-4-((x.s-mn)/sp)*(H-8)).toFixed(1)}`).join(" ");
+  return`<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--c1)" stroke-width="1.6"/></svg>`;
+}
+function render(){
+  const tracked=G().tracked,names=Object.keys(tracked);
+  $("trkEmpty").style.display=names.length?"none":"";
+  $("trkEmpty").textContent=`No ${GAMES[D.game]} scenarios tracked yet. Play one and you'll be asked, or add one from the Recent tab.`;
+  const f=$("filter").value.toLowerCase();
+  const rows=names.filter(n=>dispName(n,tracked[n]).toLowerCase().includes(f)).map(n=>{const t=tracked[n];const best=pb(t);const ri=rankInfo(t.thr,best??0);return{n,t,best,ri,ct:categoryOf(D.game,t,dispName(n,t)),last:t.runs.length?t.runs[t.runs.length-1]:null}})
+    .filter(r=>{const cf=$("catF").value;return !cf||(cf==="none"?!r.ct.cat:r.ct.cat===cf)});
+  const so=$("sort").value;
+  const nm=r=>dispName(r.n,r.t);
+  const ckey=r=>(r.ct.cat?["Clicking","Tracking","Switching","Other"].indexOf(r.ct.cat):9)+"|"+(r.ct.sub||"");
+  rows.sort((a,b)=>so==="cat"?(ckey(a).localeCompare(ckey(b))||nm(a).localeCompare(nm(b))):so==="name"?nm(a).localeCompare(nm(b)):so==="rank"?((b.ri?b.ri.pts:-1)-(a.ri?a.ri.pts:-1)):so==="prog"?((b.ri?b.ri.prog:-1)-(a.ri?a.ri.prog:-1)):((b.last?b.last.t:0)-(a.last?a.last.t:0)));
+  const box=$("cards");box.innerHTML="";
+  shownRows=rows.map(r=>nm(r));
+  box.className=D.settings.condensed?"clist":"grid";
+  $("viewTgl").textContent=D.settings.condensed?"Card view":"List view";
+  if(D.settings.condensed&&rows.length){
+    const hd=document.createElement("div");hd.className="crow chead";
+    hd.innerHTML="<span>Scenario</span><span>Best</span><span>Last</span><span>Rank</span><span>Progress</span><span></span>";box.appendChild(hd);
+  }
+  for(const r of rows){
+    if(D.settings.condensed){
+      const ri=r.ri,row=document.createElement("div");row.className="crow";
+      const to=ri&&ri.next!=null?` &middot; ${fmtScore(Math.max(0,ri.next-(r.best??0)))} to go`:(ri?" &middot; max":"");
+      row.innerHTML=`<span class="cname"><span class="nm play" title="Click to open in ${GAMES[D.game]}">${esc(nm(r))}</span>${chipsHtml(r.ct,true)}</span>
+        <span>${r.best==null?"-":fmtScore(r.best)}</span>
+        <span class="dim">${r.last?fmtScore(r.last.s):"-"}</span>
+        <span>${ri?rankHtml(ri.idx):"<span style='color:var(--dim)'>-</span>"}</span>
+        <span class="cprog"><span class="bar"><i></i></span><span class="small">${ri?Math.round(ri.prog*100)+"%":"no ranks"}${to}</span></span>
+        <span class="cbtn"><button data-a="play" class="pri">Play</button><button data-a="rk">Ranks</button><button data-a="rm">&times;</button></span>`;
+      row.querySelector(".nm").onclick=row.querySelector("[data-a=play]").onclick=()=>playScenario(D.game,nm(r));
+      row.querySelector("[data-a=rk]").onclick=()=>openRanks(r.n);
+      row.querySelector("[data-a=rm]").onclick=()=>{if(confirm("Stop tracking '"+nm(r)+"'? Run history for it is deleted.")){delete tracked[r.n];save();render();renderRecent()}};
+      box.appendChild(row);
+      setBar(row.querySelector(".bar i"),ri?ri.prog:0);
+      continue;
+    }
+    const t=r.t,ri=r.ri,fs=document.createElement("fieldset");
+    const nextTxt=ri?(ri.next==null?"Top of this ladder reached":`${fmtScore(ri.cur)} / ${fmtScore(ri.next)} to ${RN[ri.idx+1]}`):"No thresholds set";
+    fs.innerHTML=`<legend title="${esc(nm(r))}">${esc(nm(r))}</legend>
+      <div class="chips">${chipsHtml(r.ct)}</div>
+      <div class="row"><span>Personal best</span><span>${r.best==null?"-":fmtScore(r.best)}</span></div>
+      <div class="row"><span>Last run</span><span>${r.last?fmtScore(r.last.s)+" &middot; "+ago(r.last.t):"-"}</span></div>
+      <div class="row"><span>Runs</span><span>${t.runs.length}</span></div>
+      <div class="rank">${ri?rankHtml(ri.idx):"<span style='color:var(--dim)'>Unranked</span>"}</div>
+      <div class="bar"><i></i></div>
+      <div class="small">${nextTxt}${ri&&ri.next!=null?` &middot; ${fmtScore(Math.max(0,ri.next-(r.best??0)))} to go`:""}</div>
+      ${D.settings.spark?sparkSvg(t.runs):""}
+      <div class="btns"><button data-a="play" class="pri">Play</button><button data-a="rk">Ranks</button><button data-a="rm">Remove</button></div>`;
+    const lg=fs.querySelector("legend");lg.classList.add("play");lg.title="Click to open in "+GAMES[D.game]+" - "+nm(r);
+    lg.onclick=fs.querySelector('[data-a=play]').onclick=()=>playScenario(D.game,nm(r));
+    fs.querySelector('[data-a=rk]').onclick=()=>openRanks(r.n);
+    fs.querySelector('[data-a=rm]').onclick=()=>{if(confirm("Stop tracking '"+nm(r)+"'? Run history for it is deleted.")){delete tracked[r.n];save();render();renderRecent()}};
+    box.appendChild(fs);
+    setBar(fs.querySelector(".bar i"),ri?ri.prog:0);
+  }
+  const rk=rows.filter(r=>r.ri);
+  const by={};for(const r of rk){const c=r.ct.cat;if(!c)continue;(by[c]=by[c]||[]).push(r.ri.pts)}
+  $("ovCats").innerHTML=Object.keys(by).map(c=>{const a=by[c].reduce((x,y)=>x+y,0)/by[c].length,i=Math.max(-1,Math.min(11,Math.floor(a)-1));return`<span class="chip" style="color:${CCOL[c]||CCOL.Other}">${c==="Switching"?"Target Switching":c}</span> ${rankHtml(i)} <span class="small">(${by[c].length})</span>`}).join("&nbsp;&nbsp;&nbsp;");
+  if(rk.length){
+    const avg=rk.reduce((s,r)=>s+r.ri.pts,0)/rk.length;
+    const idx=Math.max(-1,Math.min(11,Math.floor(avg)-1));
+    const prog=idx===11?1:avg-Math.floor(avg);
+    $("ovRank").innerHTML=rankHtml(idx)+` <span class="small">&middot; ${avg.toFixed(2)} avg rank points</span>`;
+    setBar($("ovBar"),prog);
+    $("ovSub").textContent=`${rk.length} ranked scenario${rk.length>1?"s":""} - average of every scenario's rank + progress`+(idx<11?` - ${Math.round(prog*100)}% to ${RN[idx+1]}`:"");
+  }else{$("ovRank").innerHTML='<span style="color:var(--dim)">Unranked</span>';setBar($("ovBar"),0);$("ovSub").textContent=names.length?"Set rank thresholds on your scenarios to get a rank.":"Add scenarios and set their rank thresholds."}
+}
+
+// ---------- recent ----------
+function recentList(g){
+  const m=new Map();
+  for(const r of runsAll[g||D.game]){const k=keyOf(r);let e=m.get(k);if(!e){e={k,n:r.n,count:0,last:r,best:r.s};m.set(k,e)}e.count++;if(r.t>=e.last.t){e.last=r;e.n=r.n}if(r.s>e.best)e.best=r.s}
+  return[...m.values()].sort((a,b)=>b.last.t-a.last.t);
+}
+function renderRecent(){
+  const f=$("recFilter").value.toLowerCase(),box=$("recList");box.innerHTML="";
+  const list=recentList().filter(e=>e.n.toLowerCase().includes(f)).slice(0,200);
+  if(!list.length){box.innerHTML='<div class="empty">'+(bridge?`No ${GAMES[D.game]} runs found yet.`:"Desktop app only.")+"</div>";return}
+  for(const e of list){
+    const tr=!!G().tracked[e.k],d=document.createElement("div");d.className="it";
+    d.innerHTML=`<div><div>${esc(e.n)}${tr?'<span class="tag" style="color:var(--c2)">tracked</span>':""}</div><small>${e.count} run${e.count>1?"s":""} &middot; best ${fmtScore(e.best)} &middot; last ${fmtScore(e.last.s)} ${ago(e.last.t)}</small></div><div class="btns" style="margin:0"><button data-a="play">Play</button>${tr?"":'<button data-a="add">Add</button>'}</div>`;
+    const b=d.querySelector("[data-a=add]");if(b)b.onclick=()=>addScenario(e.k,D.game,true);
+    d.querySelector("[data-a=play]").onclick=()=>playScenario(D.game,e.n);
+    d.firstChild.firstChild.classList.add("play");d.firstChild.firstChild.onclick=()=>playScenario(D.game,e.n);
+    box.appendChild(d);
+  }
+}
+function updateStrip(){
+  const last=recentList()[0];
+  $("lastTxt").innerHTML=last?`Last played: <b>${esc(last.n)}</b> (${fmtScore(last.last.s)}, ${ago(last.last.t)})`:"Last played: -";
+  const a=$("lastAdd");a.innerHTML="";
+  if(last&&!G().tracked[last.k]){const b=document.createElement("button");b.textContent="Add to tracker";b.onclick=()=>addScenario(last.k,D.game,true);a.appendChild(b)}
+  setKv();
+}
+
+// ---------- open in game ----------
+async function playScenario(game,name){
+  if(!bridge){toast("Desktop app only");return}
+  const r=await call("launch",{game,name});
+  toast(r&&r.msg?r.msg:(r&&r.error?r.error:"Could not launch"),4000);
+}
+
+async function openPlaylist(){
+  if(!bridge){toast("Desktop app only");return}
+  if(!shownRows.length){toast("Nothing to put in a playlist");return}
+  const r=await call("playlist",{game:D.game,name:"Aim Tracker",scenarios:shownRows});
+  toast(r&&r.msg?r.msg:(r&&r.error?r.error:"Could not make the playlist"),7000);
+}
+$("plAll").onclick=openPlaylist;
+$("viewTgl").onclick=()=>{D.settings.condensed=!D.settings.condensed;applyVisuals();save();render()};
+
+// ---------- add / detect ----------
+function setGame(g){
+  if(D.game===g)return;
+  D.game=g;save();applyGame();render();renderRecent();updateStrip();
+}
+function applyGame(){
+  document.querySelectorAll(".games span").forEach(s=>s.classList.toggle("on",s.dataset.g===D.game));
+  document.title=GAMES[D.game]+" Tracker";
+}
+function addScenario(key,game,openEditor){
+  const gd=G(game);
+  if(!gd.tracked[key]){
+    const rs=runsAll[game].filter(r=>keyOf(r)===key).sort((a,b)=>a.t-b.t);
+    const runs=rs.map(r=>({f:r.f,s:r.s,t:r.t}));
+    gd.tracked[key]={name:rs.length?rs[rs.length-1].n:key,added:Date.now(),thr:null,runs};
+    gd.ignored=gd.ignored.filter(x=>x!==key);
+    save();render();renderRecent();updateStrip();fetchCategories();
+    toast("Tracking "+gd.tracked[key].name+" ("+runs.length+" past run"+(runs.length===1?"":"s")+" imported)");
+  }
+  if(openEditor){setGame(game);openRanks(key)}
+}
+function onNewRun(run,game){
+  if(!runsAll[game].some(r=>r.f===run.f))runsAll[game].push(run);
+  const gd=G(game),key=keyOf(run),t=gd.tracked[key];
+  if(t){
+    t.name=run.n;                       // keep the display name fresh (Aimlabs names resolve later)
+    if(!t.runs.some(r=>r.f===run.f)){
+      const prev=pb(t);t.runs.push({f:run.f,s:run.s,t:run.t});save();render();
+      const ri=rankInfo(t.thr,run.s),pr=rankInfo(t.thr,prev??0);
+      let msg=`${run.n}: ${fmtScore(run.s)}`;
+      if(prev==null||run.s>prev)msg+=" - NEW PB!";
+      if(ri&&pr&&ri.idx>pr.idx&&run.s>=prev)msg+=` Ranked up to ${RN[ri.idx]}!`;
+      toast(msg,4000);
+    }
+  }else if(!gd.ignored.includes(key)){
+    if(!queue.some(q=>q.game===game&&q.key===key)&&!(prompting&&prompting.game===game&&prompting.key===key))queue.push({game,key});
+    nextPrompt();
+  }
+  renderRecent();updateStrip();
+}
+function nextPrompt(){
+  if(prompting||!queue.length)return;
+  prompting=queue.shift();
+  const rs=runsAll[prompting.game].filter(r=>keyOf(r)===prompting.key).sort((a,b)=>b.t-a.t),last=rs[0];
+  $("mAddGame").textContent=GAMES[prompting.game];
+  $("mAddName").textContent=last.n;
+  $("mAddSub").textContent=`You just scored ${fmtScore(last.s)}. ${rs.length} run${rs.length>1?"s":""} found.`;
+  $("mAdd").classList.add("on");
+}
+function closePrompt(){$("mAdd").classList.remove("on");prompting=null;setTimeout(nextPrompt,150)}
+$("mAddYes").onclick=()=>{const p=prompting;closePrompt();addScenario(p.key,p.game,true)};
+$("mAddLater").onclick=closePrompt;
+$("mAddNever").onclick=()=>{G(prompting.game).ignored.push(prompting.key);save();closePrompt()};
+
+// ---------- rank editor ----------
+function openRanks(key){
+  editing=key;const t=G().tracked[key];
+  $("mRankTitle").textContent="Rank thresholds - "+dispName(key,t);
+  const g=$("rkGrid");g.innerHTML="";
+  RANKS.forEach((r,i)=>{
+    const l=document.createElement("span");l.innerHTML=rankHtml(i);l.firstChild.textContent=RN[i];
+    const inp=document.createElement("input");inp.type="number";inp.step="any";inp.id="rk"+i;inp.value=t.thr?t.thr[i]:"";
+    g.appendChild(l);g.appendChild(inp);
+  });
+  const kv=D.game==="kv";$("pcLb").disabled=!kv;$("pcLb").textContent=kv?"From the KovaaK's leaderboard (online)":"KovaaK's leaderboard (KovaaK's tab only)";
+  if(!kv&&$("pcSrc").value==="lb")$("pcSrc").value="mine";
+  $("mCat").value=t.cat||"";$("mSub").value=t.sub||"";
+  const gt=guessTier(dispName(key,t));$("pcTier").value=t.tier!=null?t.tier:(gt!=null?gt:0);
+  $("pcTierNote").textContent=t.tier!=null?"(saved)":(gt!=null?"(guessed from the name)":"(not detected - pick one)");
+  $("bmBox").style.display=D.game==="kv"?"":"none";$("bmOut").innerHTML="";
+  $("rkPaste").value="";$("mRank").classList.add("on");updatePcInfo();
+}
+const rkVals=()=>RANKS.map((_,i)=>parseFloat($("rk"+i).value));
+$("rkFill").onclick=()=>{const a=parseFloat($("rk0").value),b=parseFloat($("rk11").value);if(!(a>=0&&b>a)){toast("Fill Wool and Celestial first (Celestial > Wool)");return}
+  for(let i=0;i<12;i++)$("rk"+i).value=+(a+(b-a)*i/11).toFixed(1)};
+$("rkPasteB").onclick=()=>{const n=$("rkPaste").value.split(/[\s,;]+/).map(parseFloat).filter(x=>!isNaN(x));if(n.length!==12){toast("Need exactly 12 numbers, got "+n.length);return}n.forEach((v,i)=>$("rk"+i).value=v)};
+// ---- rank distribution (top-% of all players per rank) ----
+const TIERS=["Beginner","Intermediate","Expert"];
+const DIST0=[89,80,69,56,30,17,9.3,4.8,1,0.26,0.05,0.004];
+const fmtP=v=>String(+(+v).toPrecision(3));
+function distCfg(){const q=D.settings;const p=(Array.isArray(q.dist)&&q.dist.length===12)?q.dist:DIST0;const aud=(Array.isArray(q.aud)&&q.aud.length===3)?q.aud:[100,p[3],p[7]];return{p,aud}}
+// the 4 "top X% of THIS scenario's players" cutoffs for a tier
+function tierTops(tier){const{p,aud}=distCfg(),q=D.settings.distScale===false?100:aud[tier];return[0,1,2,3].map(k=>Math.min(100,p[tier*4+k]/q*100))}
+// top-% cutoffs for ranks from this tier's first rank up to `last` (inclusive), scaled to the tier's audience
+function tierTopsTo(tier,last){const{p,aud}=distCfg(),q=D.settings.distScale===false?100:aud[tier];const o=[];for(let r=tier*4;r<=last;r++)o.push(Math.min(100,p[r]/q*100));return o}
+function guessTier(n){const s=n.toLowerCase();if(/\b(novice|beginner|entry|easy)\b/.test(s))return 0;if(/\b(intermediate|medium)\b/.test(s))return 1;if(/\b(advanced|expert|elite|hard)\b/.test(s))return 2;return null}
+function renderDist(){
+  const{p,aud}=distCfg(),g=$("distGrid"),ag=$("audGrid");g.innerHTML="";ag.innerHTML="";
+  RANKS.forEach((r,i)=>{
+    const l=document.createElement("span");l.innerHTML=rankHtml(i);l.firstChild.textContent=RN[i];
+    const inp=document.createElement("input");inp.type="number";inp.step="any";inp.value=p[i];
+    inp.onchange=()=>{const x=parseFloat(inp.value);if(!(x>0&&x<=100)){inp.value=distCfg().p[i];toast("Use a value above 0 and up to 100");return}
+      const v=distCfg().p.slice();v[i]=x;D.settings.dist=v;save();renderDist()};
+    g.appendChild(l);g.appendChild(inp);
+  });
+  TIERS.forEach((tn,k)=>{
+    const l=document.createElement("span");l.textContent=tn+" audience %";
+    const inp=document.createElement("input");inp.type="number";inp.step="any";inp.value=aud[k];
+    inp.onchange=()=>{const x=parseFloat(inp.value);if(!(x>0&&x<=100)){inp.value=distCfg().aud[k];toast("Use a value above 0 and up to 100");return}
+      const v=distCfg().aud.slice();v[k]=x;D.settings.aud=v;save();renderDist()};
+    ag.appendChild(l);ag.appendChild(inp);
+  });
+  $("vDistScale").classList.toggle("on",D.settings.distScale!==false);
+  $("distPrev").innerHTML=TIERS.map((tn,k)=>`<b>${tn}</b>: `+tierTops(k).map((x,j)=>`${RN[k*4+j]} top ${fmtP(x)}%`).join(" &middot; ")).join("<br>");
+}
+$("vDistScale").onclick=()=>{D.settings.distScale=D.settings.distScale===false;save();renderDist();updatePcInfo()};
+$("distReset").onclick=()=>{D.settings.dist=null;D.settings.aud=null;D.settings.distScale=true;save();renderDist();updatePcInfo();toast("Rank distribution reset")};
+
+// percentile of a sorted array, linear interpolation between neighbours
+function pctile(sorted,p){const n=sorted.length;if(n===1)return sorted[0];const pos=(n-1)*Math.min(100,Math.max(0,p))/100,lo=Math.floor(pos),hi=Math.ceil(pos);return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo)}
+const parseNums=s=>s.split(/[\s,;]+/).map(parseFloat).filter(x=>!isNaN(x));
+function updatePcInfo(){
+  const src=$("pcSrc").value,mode=$("pcMode").value;
+  $("pcPaste").style.display=src==="paste"?"block":"none";
+  $("pcList").style.display=mode==="list"?"":"none";$("pcListNote").style.display=mode==="list"?"":"none";
+  $("pcTierRow").style.display=mode==="dist"?"":"none";
+  for(const id of ["pcLo","pcHi"]){$(id).disabled=mode!=="even"}
+  if(mode==="dist"){
+    const k=+$("pcTier").value,ext=D.settings.pcExtend!==false;
+    $("pcExt").classList.toggle("on",ext);
+    $("pcTierPrev").textContent=`${TIERS[k]} tier: ${RN[k*4]} to ${RN[k*4+3]} use the top `+tierTops(k).map(fmtP).join("%, ")+"% of this scenario's scores."
+      +(ext?(k<2?` Ranks above (${RN[k*4+4]} to Celestial) continue down the same distribution.`:"")+(k>0?` Ranks below ${RN[k*4]} are extrapolated downward from this tier's own steps.`:""):"")+" Edit the distribution in Settings."}
+  const t=editing&&G().tracked[editing];
+  if(src==="lb"){$("pcInfo").textContent="Looks the scenario up on kovaaks.com and reads the real score at each cutoff (sends the scenario name online).";return}
+  const n=src==="mine"?(t?t.runs.length:0):parseNums($("pcPaste").value).length;
+  $("pcInfo").textContent=n?`${n} score${n>1?"s":""} available`+(n<20?" - with so few the ranks will be rough":""):(src==="mine"?"No runs recorded for this scenario yet.":"Paste some scores first.");
+}
+$("pcSrc").onchange=updatePcInfo;$("pcMode").onchange=updatePcInfo;$("pcExt").onclick=()=>{D.settings.pcExtend=D.settings.pcExtend===false;save();updatePcInfo()};
+$("pcTier").onchange=()=>{$("pcTierNote").textContent="(chosen)";updatePcInfo()};$("pcPaste").oninput=updatePcInfo;
+// the 12 "top X%" cutoffs, Iron first (bigger number = easier)
+function topList(){
+  if($("pcMode").value==="list"){
+    const v=parseNums($("pcList").value);
+    if(v.length!==12||v.some(x=>!(x>0&&x<=100))||v.some((x,i)=>i&&x>=v[i-1])){toast("Top-% list needs 12 values between 0 and 100, each lower than the one before");return null}
+    return v;
+  }
+  const lo=parseFloat($("pcLo").value),hi=parseFloat($("pcHi").value);
+  if(!(lo>=0&&hi<=100&&hi>lo)){toast("Percentiles must be 0-100 with Celestial higher than Wool");return null}
+  return Array.from({length:12},(_,i)=>Math.max(0.01,100-(lo+(hi-lo)*i/11)));
+}
+function fillThresholds(raw,note){
+  const v=[];raw.forEach((x,i)=>{x=+(+x).toFixed(1);if(i&&x<=v[i-1])x=+(v[i-1]+0.1).toFixed(1);v.push(x)});
+  v.forEach((x,i)=>$("rk"+i).value=x);toast(note+" - press Save to keep it",4000);
+}
+// scores for each "top X%" cutoff from the chosen source; null if it could not be worked out
+async function pcScores(src,tops){
+  const t=G().tracked[editing];
+  if(src==="lb"){
+    if(D.game!=="kv"){toast("The online leaderboard is only available for KovaaK's");return null}
+    $("pcGo").disabled=true;$("pcInfo").textContent="Fetching leaderboard...";
+    const r=await call("leaderboard",{name:dispName(editing,t),tops});
+    $("pcGo").disabled=false;updatePcInfo();
+    if(!r||r.error){toast(r&&r.error?r.error:"Could not reach the leaderboard",5000);return null}
+    return{vals:r.scores,note:`"${r.name}" (${r.total} players)`};
+  }
+  const arr=(src==="mine"?(t?t.runs.map(r=>r.s):[]):parseNums($("pcPaste").value)).sort((a,b)=>a-b);
+  if(arr.length<3){toast("Need at least 3 scores to work out percentiles");return null}
+  return{vals:tops.map(p=>pctile(arr,100-p)),note:`${arr.length} scores`};
+}
+$("pcGo").onclick=async()=>{
+  const src=$("pcSrc").value;
+  if($("pcMode").value==="dist"){
+    const tier=+$("pcTier").value,ext=D.settings.pcExtend!==false,first=tier*4,last=ext?11:first+3;
+    const tops=tierTopsTo(tier,last),r=await pcScores(src,tops);if(!r)return;
+    const full=Array(12).fill(null);
+    let prev=-Infinity;                                  // this tier and above: straight from the scores, kept strictly rising
+    r.vals.forEach((x,j)=>{x=+(+x).toFixed(1);if(x<=prev)x=+(prev+0.1).toFixed(1);prev=x;full[first+j]=x});
+    if(ext)for(let k=first-1;k>=0;k--){                  // below the tier: same ratio as the step above, shrinking downward
+      const hi=full[k+1],hi2=full[k+2];
+      const ratio=hi2>0&&hi>0?Math.min(hi/hi2,0.98):0.9;
+      let x=+(hi*ratio).toFixed(1);if(x>=hi)x=+(hi-0.1).toFixed(1);
+      if(x<0){x=null}
+      full[k]=x;if(x==null)break;
+    }
+    RANKS.forEach((_,k)=>$("rk"+k).value=full[k]==null?"":full[k]);
+    const done=full.filter(x=>x!=null).length;
+    toast(`${TIERS[tier]} tier from ${r.note}: ${done} ranks filled${ext&&first>0?" (those below "+RN[first]+" are extrapolated)":""} - press Save to keep it`,6000);
+    return;
+  }
+  const tops=topList();if(!tops)return;
+  const r=await pcScores(src,tops);if(!r)return;
+  fillThresholds(r.vals,`Top-% scores from ${r.note}`);
+};
+$("rkSave").onclick=()=>{const v=rkVals(),t=G().tracked[editing];
+  const fl=v.map((x,k)=>isNaN(x)?-1:k).filter(k=>k>=0);
+  if(!fl.length){t.thr=null}
+  else if(fl.length<2){toast("Fill at least two ranks");return}
+  else if(fl.length!==fl[fl.length-1]-fl[0]+1){toast("Fill ranks in one unbroken run - blank ones only before or after it");return}
+  else if(fl.some((k,n)=>n&&v[k]<=v[fl[n-1]])){toast("Each rank must be higher than the one before");return}
+  else t.thr=v.map(x=>isNaN(x)?null:x);
+  t.cat=$("mCat").value||null;t.sub=$("mSub").value||null;t.tier=+$("pcTier").value;
+  save();render();$("mRank").classList.remove("on");fetchCategories()};
+$("rkCancel").onclick=()=>$("mRank").classList.remove("on");
+
+// ---------- benchmarks (evxl.app list, KovaaK's boundaries) ----------
+// returns the slot of the first rank in our 12-rank ladder if every rank name lines up (Voltaic: Iron..Gold, Platinum..Master, ...), else -1
+function bmSlot(names){const i=RANKS.indexOf(names[0]);return i>=0&&names.every((n,j)=>RANKS[i+j]===n)?i:-1}
+function bmImport(m){
+  RANKS.forEach((_,k)=>$("rk"+k).value="");
+  const slot=bmSlot(m.ranks),at=slot<0?0:slot;
+  m.ranks.forEach((n,k)=>{if(at+k<12)$("rk"+(at+k)).value=m.maxes[k]});
+  const bt={novice:0,entry:0,beginner:0,intermediate:1,advanced:2,elite:2,expert:2}[String(m.d).toLowerCase().split(" ")[0]];
+  if(bt!=null){$("pcTier").value=bt;$("pcTierNote").textContent="(from the benchmark)";updatePcInfo()}
+  let msg=`Imported ${dn(m.ranks[0])} to ${dn(m.ranks[m.ranks.length-1])} from ${m.b} (${m.d})`;
+  if(slot<0)msg+=" - its rank names differ from ours, so they were put in from Wool";
+  toast(msg+" - press Save to keep it",5500);
+}
+async function bmCheck(force){
+  const t=G().tracked[editing],name=dispName(editing,t),out=$("bmOut");
+  if(D.game!=="kv"){out.innerHTML='<div class="small">Benchmarks are KovaaK\'s only.</div>';return}
+  out.innerHTML='<div class="small">Checking...</div>';
+  let r=force?null:await call("benchFind",{name});
+  if(!r||r.built===false){
+    out.innerHTML='<div class="small">Downloading the benchmark list from evxl.app and the boundaries from KovaaK\'s - first time only, about 30 seconds...</div>';
+    $("bmCheck").disabled=$("bmRefresh").disabled=true;
+    const b=await call("benchBuild");
+    $("bmCheck").disabled=$("bmRefresh").disabled=false;
+    if(!b||b.error){out.innerHTML='<div class="small" style="color:#f77">'+esc(b&&b.error?b.error:"Could not download the list (offline?)")+"</div>";return}
+    r=await call("benchFind",{name});
+  }
+  out.innerHTML="";
+  if(!r||!r.matches||!r.matches.length){
+    out.innerHTML=`<div class="small">"${esc(name)}" was not found in any benchmark on evxl.app. Names must match exactly.</div>`;return}
+  const when=r.builtAt?new Date(r.builtAt).toLocaleDateString():"";
+  out.innerHTML=`<div class="small" style="margin-top:6px">Found in ${r.matches.length} benchmark${r.matches.length>1?"s":""} (list from ${when}):</div>`;
+  for(const m of r.matches){
+    const d=document.createElement("div");d.className="it";
+    const bounds=m.ranks.map((n,j)=>`${dn(n)} ${fmtScore(m.maxes[j])}`).join(" &middot; ");
+    d.innerHTML=`<div><div>${esc(m.b)} <span class="tag" style="color:var(--c2)">${esc(m.d)}</span> <span class="small">${esc(m.cat)}</span></div><small>${bounds}</small></div><div class="btns" style="margin:0"><button data-a="one">Import</button></div>`;
+    d.querySelector("[data-a=one]").onclick=()=>bmImport(m);
+    out.appendChild(d);
+  }
+}
+$("bmCheck").onclick=()=>bmCheck(false);
+$("bmRefresh").onclick=()=>bmCheck(true);
+
+// ---------- updates (GitHub releases) ----------
+let updInfo=null,appVer="";
+function renderUpdSettings(){
+  $("vAutoUpd").classList.toggle("on",D.settings.autoUpdate!==false);
+  $("vAutoInst").classList.toggle("on",D.settings.autoInstall!==false);
+}
+async function installUpdate(){
+  if(!updInfo||!updInfo.url)return;
+  D.settings.lastUpdateTry=updInfo.latest;save();
+  $("updBtn").disabled=true;toast("Downloading version "+updInfo.latest+"...",8000);
+  const r=await call("updateInstall",{url:updInfo.url,sha:updInfo.sha});
+  $("updBtn").disabled=false;
+  if(!r||r.error)toast("Update failed: "+(r&&r.error?r.error:"no answer"),7000);
+  else toast("Installing "+updInfo.latest+" - the app restarts in a moment",8000);
+}
+async function checkUpdate(manual){
+  if(!bridge)return;
+  $("updMsg").textContent="Checking for updates...";
+  const r=await call("updateCheck");
+  if(!r||r.error){$("updMsg").textContent="Version "+appVer+" - could not check for updates"+(manual?" (offline?)":"");if(manual)toast("Could not reach GitHub",4000);return}
+  updInfo=r;$("updBar").innerHTML="";$("updBtn").style.display="none";
+  if(r.none){$("updMsg").textContent="Version "+appVer+" - no release published yet";return}
+  if(!r.newer){$("updMsg").textContent="Version "+appVer+" - up to date";$("updNotes").textContent="";if(manual)toast("You're up to date",3000);return}
+  $("updMsg").innerHTML="Version "+esc(appVer)+" - <b>"+esc(r.latest)+" is available</b>";
+  $("updNotes").textContent=r.notes||"";$("updBtn").style.display="";
+  // install by itself at start-up, but never retry the same version in a loop if it did not take
+  if(!manual&&D.settings.autoInstall!==false&&D.settings.lastUpdateTry!==r.latest){installUpdate();return}
+  const b=document.createElement("button");b.className="pri";b.textContent="Update to "+r.latest;b.onclick=installUpdate;$("updBar").appendChild(b);
+}
+$("updCheck").onclick=()=>checkUpdate(true);
+$("updBtn").onclick=installUpdate;
+$("vAutoUpd").onclick=()=>{D.settings.autoUpdate=D.settings.autoUpdate===false;save();renderUpdSettings()};
+$("vAutoInst").onclick=()=>{D.settings.autoInstall=D.settings.autoInstall===false;save();renderUpdSettings()};
+
+// ---------- account ----------
+async function loadAccount(){
+  acct=await call("account")||{};
+  $("aPersona").textContent=acct.persona||"not found";$("aAcct").textContent=acct.account||"-";$("aId").textContent=acct.steamId||"-";
+  $("aSteam").textContent=acct.steamRunning?"yes":"no";
+  $("aKv").textContent=acct.kvPath||"KovaaK's not found";$("aStats").textContent=acct.statsDir||"not found - choose it below";
+  $("aAl").textContent=acct.alPath||"Aimlabs data not found";$("aAlUser").textContent=acct.alUser||"-";
+  $("aAlSteam").textContent=acct.alSteamId?(acct.alSteamId+(acct.steamId&&acct.alSteamId===acct.steamId?"  (same as your Steam account)":"")):"-";
+  $("aAlDb").textContent=acct.alDb||"-";
+  status={kvRunning:acct.kvRunning,alRunning:acct.alRunning};setKv();
+}
+function setKv(){
+  const on=D.game==="al"?status.alRunning:status.kvRunning;
+  $("kvDot").classList.toggle("on",!!on);$("kvTxt").textContent=GAMES[D.game]+(on?" running":" not running");
+}
+$("aRef").onclick=loadAccount;
+$("aOpen").onclick=()=>{if(acct.steamId)call("open","https://steamcommunity.com/profiles/"+acct.steamId)};
+$("aBrowse").onclick=async()=>{if(await call("browseStats")){await refreshRuns("kv");loadAccount();toast("Stats folder updated")}};
+$("ksUser").onchange=e=>{D.ksUser=e.target.value;save()};
+
+// ---------- visuals ----------
+function applyVisuals(){
+  const s=D.settings,h=document.documentElement;
+  h.classList.toggle("static",!s.anim);h.classList.toggle("sat",!!s.saturated);
+  h.style.setProperty("--speed",s.speed+"s");h.style.setProperty("--sp",s.sp);
+  if(!s.saturated){h.style.setProperty("--sat",s.sat+"%")}else h.style.removeProperty("--sat");
+  if(!s.anim)h.style.setProperty("--hue",s.hue);else h.style.removeProperty("--hue");
+  for(const [id,k] of [["vAnim","anim"],["vSat","saturated"],["vRankCol","rankCol"],["vSpark","spark"],["vCond","condensed"]])$(id).classList.toggle("on",!!s[k]);
+  const rng=(id,n,v,suf)=>{$(id).value=v;$(n).textContent=v+suf;const r=$(id);r.style.setProperty("--p",((v-r.min)/(r.max-r.min)*100)+"%")};
+  rng("vSpeed","vSpeedN",s.speed,"s / cycle");rng("vSatR","vSatN",s.sat,"%");rng("vSp","vSpN",s.sp,"°");rng("vHue","vHueN",s.hue,"°");
+}
+for(const [id,k] of [["vAnim","anim"],["vSat","saturated"],["vRankCol","rankCol"],["vSpark","spark"],["vCond","condensed"]])
+  $(id).onclick=()=>{D.settings[k]=!D.settings[k];applyVisuals();save();render()};
+for(const [id,k] of [["vSpeed","speed"],["vSatR","sat"],["vSp","sp"],["vHue","hue"]])
+  $(id).oninput=e=>{D.settings[k]=+e.target.value;applyVisuals();save()};
+$("dExp").onclick=()=>{$("dBox").value=JSON.stringify(D,null,1)};
+$("dImp").onclick=()=>{try{const x=JSON.parse($("dBox").value);if(!x||(typeof x.tracked!=="object"&&typeof x.byGame!=="object"))throw 0;D=normalize(x);save();applyVisuals();renderDist();applyGame();render();renderRecent();updateStrip();toast("Imported")}catch(e){toast("Invalid JSON")}};
+
+// ---------- misc wiring ----------
+document.querySelectorAll(".tabs span").forEach(s=>s.onclick=()=>{
+  document.querySelectorAll(".tabs span,.page").forEach(x=>x.classList.remove("on"));s.classList.add("on");$(s.dataset.p).classList.add("on");
+  if(s.dataset.p==="trk")render()});
+document.querySelectorAll(".games span").forEach(s=>s.onclick=()=>setGame(s.dataset.g));
+$("sort").onchange=render;$("catF").onchange=render;$("filter").oninput=render;$("recFilter").oninput=renderRecent;
+window.addEventListener("resize",()=>{document.querySelectorAll(".bar i").forEach(i=>i.style.setProperty("--w",i.parentElement.clientWidth+"px"))});
+
+async function refreshRuns(g){
+  const r=await call("runs",g);runsAll[g]=Array.isArray(r)?r:[];
+  // backfill runs missing from tracked history and refresh names
+  const gd=G(g);let ch=false;
+  for(const r of runsAll[g]){const t=gd.tracked[keyOf(r)];if(!t)continue;
+    if(t.name!==r.n){t.name=r.n;ch=true}
+    if(!t.runs.some(x=>x.f===r.f)){t.runs.push({f:r.f,s:r.s,t:r.t});ch=true}}
+  if(ch){for(const t of Object.values(gd.tracked))t.runs.sort((a,b)=>a.t-b.t);save()}
+  if(g===D.game){render();renderRecent();updateStrip()}
+}
+
+(async function init(){
+  try{const raw=await call("load");if(raw)D=normalize(JSON.parse(raw))}catch(e){}
+  $("ksUser").value=D.ksUser||"";applyVisuals();applyGame();renderDist();render();
+  if(bridge){bridge.onEvent(m=>{if(m.event==="newRun")onNewRun(m.run,m.game||"kv")});
+    appVer=(await call("version"))||"";if(appVer)$("appTitle").textContent="Aim Tracker v"+appVer;renderUpdSettings();
+    await refreshRuns("kv");await refreshRuns("al");loadAccount();fetchCategories();
+    if(D.settings.autoUpdate!==false)checkUpdate(false);else $("updMsg").textContent="Version "+appVer;
+    setInterval(async()=>{const s=await call("status");if(s){status=s;setKv()}},4000)}
+  else{$("lastTxt").textContent="Run the desktop app to read game stats."}
+})();
+</script>
+</body>
+</html>
