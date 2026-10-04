@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,17 +16,33 @@ using Microsoft.Win32;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace AimTracker
+[assembly: AssemblyTitle("N.AIM Benchmark Assistant")]
+[assembly: AssemblyProduct("N.AIM Benchmark Assistant")]
+[assembly: AssemblyDescription("N.AIM Benchmark Assistant")]
+[assembly: AssemblyCompany("N.AIM")]
+[assembly: AssemblyVersion(NAimBenchmarkAssistant.Meta.Version + ".0")]
+[assembly: AssemblyFileVersion(NAimBenchmarkAssistant.Meta.Version + ".0")]
+
+namespace NAimBenchmarkAssistant
 {
+    static class Meta
+    {
+        public const string Version = "1.1.0";                       // bump this for a release
+        public const string Name = "N.AIM Benchmark Assistant";
+        public const string Repo = "iwasmadeforhell/naim-benchmark-assistant";   // releases of this repo are the update source
+        public const string SetupAsset = "NAIM-Benchmark-Assistant-Setup.exe";
+    }
+
     static class Program
     {
         [STAThread]
         static void Main()
         {
             bool created;
-            using (var m = new System.Threading.Mutex(true, "SensSwitcher.AimTracker", out created))
+            using (var m = new System.Threading.Mutex(true, "NAIM.BenchmarkAssistant", out created))
             {
                 if (!created) return;
+                MainForm.MigrateOldData();
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new MainForm());
@@ -99,11 +116,29 @@ namespace AimTracker
         Dictionary<string, string> alNames = new Dictionary<string, string>();       // taskId -> full name
         HashSet<string> alScanned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string alLastSig = "";
-        const string AppVersion = "1.0.0";
-        const string UpdateRepo = "iwasmadeforhell/aim-tracker";   // releases of this repo are the update source
+        const string AppVersion = Meta.Version;
+        const string UpdateRepo = Meta.Repo;
         static readonly string AppDir = AppDomain.CurrentDomain.BaseDirectory;
-        // AIMTRACKER_DATA / AIMTRACKER_STATS exist for testing and screenshots (keep demo data away from the real files)
-        static readonly string DataDir = Environment.GetEnvironmentVariable("AIMTRACKER_DATA") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SensSwitcher");
+        // NAIM_DATA / NAIM_STATS exist for testing and screenshots (keep demo data away from the real files)
+        static readonly string LocalApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        static readonly string DataDir = Environment.GetEnvironmentVariable("NAIM_DATA") ?? Path.Combine(LocalApp, Meta.Name);
+        // earlier versions kept their files in %LOCALAPPDATA%\SensSwitcher: copy them over once
+        public static void MigrateOldData()
+        {
+            try
+            {
+                if (Environment.GetEnvironmentVariable("NAIM_DATA") != null) return;
+                string old = Path.Combine(LocalApp, "SensSwitcher");
+                if (!Directory.Exists(old)) return;
+                Directory.CreateDirectory(DataDir);
+                foreach (string f in new[] { "tracker.json", "bench-index.json", "tracker-paths.json" })
+                {
+                    string src = Path.Combine(old, f), dst = Path.Combine(DataDir, f);
+                    if (File.Exists(src) && !File.Exists(dst)) File.Copy(src, dst);
+                }
+            }
+            catch { }
+        }
         static readonly string DataFile = Path.Combine(DataDir, "tracker.json");
         static readonly string CfgFile = Path.Combine(DataDir, "tracker-paths.json");
 
@@ -113,7 +148,10 @@ namespace AimTracker
             known["kv"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             known["al"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             ready["kv"] = false; ready["al"] = false;
-            Text = "Aim Tracker";
+            Text = Meta.Name;
+            FormBorderStyle = FormBorderStyle.None;      // the page draws its own title bar and buttons
+            Padding = new Padding(4);                    // thin strip around the page that carries the resize edges
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             ClientSize = new Size(960, 820);
             MinimumSize = new Size(640, 480);
             BackColor = Color.FromArgb(14, 16, 21);
@@ -126,12 +164,59 @@ namespace AimTracker
             watch.Tick += delegate { Watch(); };
         }
 
+        [DllImport("user32.dll")] static extern bool ReleaseCapture();
+        [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+        const int WM_NCHITTEST = 0x84, WM_NCLBUTTONDOWN = 0xA1;
+        const int HTCLIENT = 1, HTCAPTION = 2, HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13, HTTOPRIGHT = 14, HTBOTTOM = 15, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                var cp = base.CreateParams;
+                cp.Style |= 0x20000 | 0x10000; // WS_MINIMIZEBOX (taskbar click minimises) + WS_MAXIMIZEBOX (double-click / snap)
+                cp.ClassStyle |= 0x20000;     // CS_DROPSHADOW
+                return cp;
+            }
+        }
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg == WM_NCHITTEST && (int)m.Result == HTCLIENT && WindowState == FormWindowState.Normal)
+            {
+                long lp = m.LParam.ToInt64();
+                var p = PointToClient(new Point((short)(lp & 0xFFFF), (short)((lp >> 16) & 0xFFFF)));
+                int g = 10; bool l = p.X < g, r = p.X >= Width - g, t = p.Y < g, b = p.Y >= Height - g;
+                if (t && l) m.Result = (IntPtr)HTTOPLEFT; else if (t && r) m.Result = (IntPtr)HTTOPRIGHT;
+                else if (b && l) m.Result = (IntPtr)HTBOTTOMLEFT; else if (b && r) m.Result = (IntPtr)HTBOTTOMRIGHT;
+                else if (l) m.Result = (IntPtr)HTLEFT; else if (r) m.Result = (IntPtr)HTRIGHT;
+                else if (t) m.Result = (IntPtr)HTTOP; else if (b) m.Result = (IntPtr)HTBOTTOM;
+            }
+        }
+        // a borderless window would otherwise maximise over the taskbar
+        protected override void OnLocationChanged(EventArgs e)
+        {
+            base.OnLocationChanged(e);
+            try { var sc = Screen.FromControl(this); var wa = sc.WorkingArea; MaximizedBounds = new Rectangle(wa.X - sc.Bounds.X, wa.Y - sc.Bounds.Y, wa.Width, wa.Height); } catch { }
+        }
+        void WindowCommand(string a)
+        {
+            if (a == "min") WindowState = FormWindowState.Minimized;
+            else if (a == "max")
+            {
+                if (WindowState == FormWindowState.Maximized) WindowState = FormWindowState.Normal;
+                else { MaximizedBounds = Screen.FromControl(this).WorkingArea; WindowState = FormWindowState.Maximized; }
+            }
+            else if (a == "close") Close();
+            else if (a == "drag" && WindowState == FormWindowState.Normal) { ReleaseCapture(); SendMessage(Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero); }
+        }
+
         async void OnLoadAsync(object sender, EventArgs e)
         {
             try
             {
                 Directory.CreateDirectory(DataDir);
-                var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(DataDir, "web-tracker"));
+                var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(DataDir, "web"));
                 await wv.EnsureCoreWebView2Async(env);
                 var c = wv.CoreWebView2;
                 c.Settings.AreDevToolsEnabled = false;
@@ -143,7 +228,7 @@ namespace AimTracker
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not start the WebView2 runtime:\n" + ex.Message, "Aim Tracker");
+                MessageBox.Show("Could not start the WebView2 runtime:\n" + ex.Message, Meta.Name);
                 Close();
             }
         }
@@ -203,7 +288,7 @@ namespace AimTracker
         }
         string StatsDir()
         {
-            string envStats = Environment.GetEnvironmentVariable("AIMTRACKER_STATS");
+            string envStats = Environment.GetEnvironmentVariable("NAIM_STATS");
             if (!string.IsNullOrEmpty(envStats) && Directory.Exists(envStats)) return envStats;
             var c = LoadCfg();
             object v;
@@ -458,7 +543,7 @@ namespace AimTracker
         {
             var rq = (HttpWebRequest)WebRequest.Create(url);
             rq.Timeout = 15000;
-            rq.UserAgent = "AimTracker/1.0";
+            rq.UserAgent = "NAIMBenchmarkAssistant/" + AppVersion;
             rq.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
             using (var rs = (HttpWebResponse)rq.GetResponse())
             using (var sr = new StreamReader(rs.GetResponseStream(), Encoding.UTF8))
@@ -513,7 +598,7 @@ namespace AimTracker
         {
             var rq = (HttpWebRequest)WebRequest.Create(url);
             rq.Timeout = 30000;
-            rq.UserAgent = "AimTracker/" + AppVersion;
+            rq.UserAgent = "NAIMBenchmarkAssistant/" + AppVersion;
             using (var rs = rq.GetResponse())
             using (var src = rs.GetResponseStream())
             using (var dst = File.Create(path))
@@ -543,13 +628,13 @@ namespace AimTracker
             {
                 var a = (Dictionary<string, object>)o;
                 string n = (string)a["name"];
-                if (n == "AimTracker-Setup.exe")
+                if (n == Meta.SetupAsset)
                 {
                     url = (string)a["browser_download_url"];
                     object dg;
                     if (a.TryGetValue("digest", out dg) && dg is string && ((string)dg).StartsWith("sha256:")) sha = ((string)dg).Substring(7);
                 }
-                else if (n == "AimTracker-Setup.exe.sha256") shaAsset = (string)a["browser_download_url"];
+                else if (n == Meta.SetupAsset + ".sha256") shaAsset = (string)a["browser_download_url"];
             }
             if (sha == null && shaAsset != null)
             {
@@ -566,7 +651,7 @@ namespace AimTracker
             if (url == null || !url.StartsWith("https://github.com/" + UpdateRepo + "/releases/download/")) throw new Exception("refusing to download from an unexpected address");
             if (string.IsNullOrEmpty(sha)) throw new Exception("the release has no checksum, so it was not installed");
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
-            string tmp = Path.Combine(Path.GetTempPath(), "AimTracker-Setup-update.exe");
+            string tmp = Path.Combine(Path.GetTempPath(), "NAIM-Benchmark-Assistant-Setup-update.exe");
             HttpDownload(url, tmp);
             string got;
             using (var sh = System.Security.Cryptography.SHA256.Create())
@@ -750,6 +835,7 @@ namespace AimTracker
                 string cmd = (string)msg["cmd"];
                 object data = msg.ContainsKey("data") ? msg["data"] : null;
                 if (cmd == "version") { Reply(msg["id"], AppVersion); return; }
+                if (cmd == "win") { string wa = (string)data; BeginInvoke(new Action(delegate { WindowCommand(wa); })); return; }   // after this callback returns, so a window-move loop never runs inside it
                 if (cmd == "updateCheck" || cmd == "updateInstall")
                 {
                     object uid = msg["id"];
@@ -885,7 +971,7 @@ namespace AimTracker
                                 var pl = new Dictionary<string, object>
                                 {
                                     { "playlistName", pn }, { "playlistId", 0 }, { "authorSteamId", "" }, { "authorName", "" },
-                                    { "scenarioList", list }, { "description", "Created by Aim Tracker" },
+                                    { "scenarioList", list }, { "description", "Created by N.AIM Benchmark Assistant" },
                                     { "hasOfflineScenarios", true }, { "hasEdited", true }, { "shareCode", "" },
                                     { "version", 31 }, { "updated", 0 }, { "isPrivate", false }
                                 };

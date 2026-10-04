@@ -1,10 +1,14 @@
-# Aim Tracker
+<p align="center"><img src="assets/logo.png" width="160" alt="N.AIM Benchmark Assistant logo"></p>
 
-A small, fast desktop tracker for your **KovaaK's** and **Aimlabs** scenarios. It notices the scenario you just played, asks if you want to track it, and shows your progress toward a rank with a progress bar. Ranks can be filled in from real leaderboard percentiles or from benchmarks listed on evxl.app.
+<h1 align="center">N.AIM Benchmark Assistant</h1>
 
-The app is about **40 KB** plus ~1 MB of libraries. The installer is **under 450 KB**. It is not Electron: it is a tiny C# window around the Edge WebView2 engine that already ships with Windows 11.
+<p align="center">A small, fast desktop tracker for your <b>KovaaK's</b> and <b>Aimlabs</b> scenarios.<br>
+It notices the scenario you just played, asks if you want to track it, and shows your progress toward a rank.<br>
+Ranks can be filled in from real leaderboard percentiles or from benchmarks listed on evxl.app.</p>
 
-![Tracker with demo data](docs/screenshots/cards.png)
+The app is about **110 KB** plus ~1 MB of libraries, and the installer is **about 500 KB**. It is not Electron: it is a tiny C# window around the Edge WebView2 engine that already ships with Windows 11, with its own title bar and window buttons.
+
+![N.AIM Benchmark Assistant with demo data](docs/screenshots/cards.png)
 
 > Screenshots use made-up demo scores on Voltaic Season 5 scenarios.
 
@@ -20,7 +24,7 @@ The app is about **40 KB** plus ~1 MB of libraries. The installer is **under 450
 ![Condensed list view](docs/screenshots/list.png)
 
 **Ranks**
-- Twelve ranks, with your own names and looks: **Wool, Warm Wool, Lavender, Stellar** (an animated night-sky badge), Platinum, Diamond, Jade, Master, Grandmaster, Nova, Astra, Celestial.
+- Twelve ranks with their own names and looks: **Wool, Warm Wool, Lavender, Stellar** (an animated night-sky badge), Platinum, Diamond, Jade, Master, Grandmaster, Nova, Astra, Celestial.
 - Set a rank threshold per scenario by hand, by pasting a list, or let the app work them out (below). A scenario can have a **partial ladder** (for example just Wool to Stellar), as benchmarks do.
 - **Rank distribution (tier-aware):** the "top X% of all players" for each rank is editable in Settings (it starts with a Voltaic-style distribution). Pick a tier for the scenario, Beginner, Intermediate or Expert, and the cutoffs are scaled to that tier's audience, because Intermediate and Expert scenarios are played by people who already cleared the tier below. Scores come from the **KovaaK's leaderboard**, from **your own runs**, or from **pasted scores**. It can extend the ladder to all 12 ranks: ranks above the tier continue down the same distribution, ranks below are extrapolated.
 - **Benchmarks (evxl.app):** check whether a scenario is part of a benchmark listed on evxl.app and import that benchmark's rank boundaries for it. Each difficulty is its own scenario, so you get that difficulty's ranks.
@@ -36,6 +40,7 @@ The app is about **40 KB** plus ~1 MB of libraries. The installer is **under 450
 - Aimlabs has no link that opens a workshop task, so Play starts the game and copies the scenario name.
 
 **Look**
+- Its own title bar and minimise / maximise / close buttons in the app's style (drag the header to move, drag the edges to resize).
 - Animated rainbow gradient, with speed, saturation, spread and a **Saturated** switch. Rank colours and graphs can be turned off.
 
 ![Settings](docs/screenshots/settings.png)
@@ -45,35 +50,36 @@ The app is about **40 KB** plus ~1 MB of libraries. The installer is **under 450
 
 ## Install
 
-1. Download **`AimTracker-Setup.exe`** from the [latest release](../../releases/latest) and run it. It installs for your user only (no admin rights) and adds Desktop and Start Menu shortcuts.
+1. Download **`NAIM-Benchmark-Assistant-Setup.exe`** from the [latest release](../../releases/latest) and run it. It installs for your user only (no admin rights) and adds Desktop and Start Menu shortcuts.
 2. Windows may warn about an unknown publisher, because the installer isn't code-signed. Click **More info**, then **Run anyway**.
 
 Needs Windows 10/11 (64-bit). Windows 11 already includes the WebView2 runtime; on Windows 10 install the *Evergreen WebView2 Runtime* from Microsoft.
 
 ### Updates
 
-The app checks this repository's latest release when it starts. If there is a newer one it downloads `AimTracker-Setup.exe`, **verifies its SHA-256** against the published checksum, runs it and restarts. You can turn automatic install off (you'll get an "Update" button instead) or turn checking off entirely in **Settings -> Updates**. The app only ever downloads from this repository's releases.
+The app checks this repository's latest release when it starts. If there is a newer one it downloads `NAIM-Benchmark-Assistant-Setup.exe`, **verifies its SHA-256** against the published checksum, runs it and restarts. You can turn automatic install off (you'll get an "Update" button instead) or turn checking off entirely in **Settings -> Updates**. The app only ever downloads from this repository's releases.
 
 ## Build from source
 
 No Visual Studio or SDK needed, only Windows and PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File build.ps1              # dist\AimTracker\AimTracker.exe
-powershell -ExecutionPolicy Bypass -File build.ps1 -Installer   # also dist\AimTracker-Setup.exe and its .sha256
+powershell -ExecutionPolicy Bypass -File build.ps1              # dist\NAIM-Benchmark-Assistant\NAIM-Benchmark-Assistant.exe
+powershell -ExecutionPolicy Bypass -File build.ps1 -Installer   # also dist\NAIM-Benchmark-Assistant-Setup.exe and its .sha256
 ```
 
-It uses the C# compiler built into Windows plus the small WebView2 wrapper libraries downloaded from NuGet. The whole UI is one file, `src/index.html`; `src/Program.cs` is the native side (reading game files, network, updates).
+It uses the C# compiler built into Windows plus the small WebView2 wrapper libraries downloaded from NuGet. The whole UI is one file, `src/index.html`; `src/Program.cs` is the native side (window, reading game files, network, updates). The logo is generated by `assets/make_logo.py`.
 
 ### Releasing (for the maintainer)
 
-Bump `AppVersion` in `src/Program.cs`, run `build.ps1 -Installer`, then publish a GitHub release tagged `vX.Y.Z` with both `AimTracker-Setup.exe` and `AimTracker-Setup.exe.sha256` attached.
+Bump `Meta.Version` in `src/Program.cs`, run `build.ps1 -Installer`, then publish a GitHub release tagged `vX.Y.Z` with both `NAIM-Benchmark-Assistant-Setup.exe` and `NAIM-Benchmark-Assistant-Setup.exe.sha256` attached.
 
 ## Where your data lives
 
-- `%LOCALAPPDATA%\SensSwitcher\tracker.json` - your tracked scenarios, ranks and settings.
-- `%LOCALAPPDATA%\SensSwitcher\bench-index.json` - a cache of the benchmark list.
+- `%LOCALAPPDATA%\N.AIM Benchmark Assistant\tracker.json` - your tracked scenarios, ranks and settings.
+- `%LOCALAPPDATA%\N.AIM Benchmark Assistant\bench-index.json` - a cache of the benchmark list.
 - The app only **reads** the games' files (KovaaK's `stats` CSVs, Aimlabs' local database and replay files). It never writes to them, except the optional playlist file you ask for.
+- Earlier versions (named *Aim Tracker*) kept their files in `%LOCALAPPDATA%\SensSwitcher`; they are copied over automatically the first time the new version starts.
 
 ## What it talks to on the internet
 

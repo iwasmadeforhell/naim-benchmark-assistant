@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Aim Tracker</title>
+<title>N.AIM Benchmark Assistant</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 @property --hue{syntax:"<number>";inherits:true;initial-value:0}
@@ -22,7 +22,12 @@ body{margin:0;background:var(--bg);color:var(--txt);font:13px Consolas,"Lucida C
 .win{max-width:1000px;margin:0 auto;background:var(--win);border:1px solid #0a0b0f;box-shadow:0 0 0 6px #14161c,0 10px 40px #000a;padding-bottom:16px}
 .top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px;position:relative;flex-wrap:wrap;gap:8px}
 .top:after{content:'';position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--rgb)}
-.top h1{margin:0;font-size:16px;font-weight:400}
+.top h1{margin:0;font-size:16px;font-weight:400;display:flex;align-items:center;gap:9px;user-select:none}
+.top h1 small{color:var(--dim);font-size:11px}
+.right{display:flex;align-items:center;gap:6px}
+.wbtns{display:flex;align-self:flex-start;margin:-10px -16px 0 12px}
+.wbtn{width:44px;height:30px;display:grid;place-items:center;padding:0;border:0;background:transparent;color:var(--dim);cursor:pointer}
+.wbtn:hover{background:#ffffff18;color:#fff;border:0}.wbtn.x:hover{background:#e5484d;color:#fff}
 .tabs span{margin-left:14px;color:var(--dim);cursor:pointer;font-size:15px;padding-bottom:9px;border-bottom:3px solid transparent}
 .tabs span.on{color:#fff;border-color:var(--c1)}.tabs span:hover{color:#fff}
 .strip{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:10px 16px;color:var(--dim);border-bottom:1px solid var(--line)}
@@ -96,8 +101,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:6px;height
 </head>
 <body>
 <div class="win">
-  <div class="top"><h1 id="appTitle">Aim Tracker</h1>
-    <div class="tabs"><span class="on" data-p="trk">Tracker</span><span data-p="rec">Recent</span><span data-p="acc">Account</span><span data-p="vis">Settings</span></div></div>
+  <div class="top" id="topbar"><h1><svg class="logo" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><defs><mask id="lgm"><rect width="512" height="512" fill="#000"/><rect x="132" y="48" width="248" height="416" rx="54" fill="#fff"/><g fill="#000"><rect x="164" y="132" width="184" height="104" rx="14"/><rect x="168" y="262" width="48" height="30" rx="10"/><rect x="230" y="262" width="48" height="30" rx="10"/><rect x="292" y="262" width="48" height="30" rx="10"/><rect x="168" y="312" width="48" height="30" rx="10"/><rect x="230" y="312" width="48" height="30" rx="10"/><rect x="292" y="312" width="48" height="30" rx="10"/><rect x="168" y="362" width="48" height="30" rx="10"/><rect x="230" y="362" width="48" height="30" rx="10"/><rect x="292" y="362" width="48" height="30" rx="10"/></g></mask></defs><rect width="512" height="512" fill="#fff" mask="url(#lgm)"/><circle cx="256" cy="184" r="26" fill="none" stroke="#fff" stroke-width="12"/><circle cx="256" cy="184" r="7" fill="#fff"/></svg><span id="appTitle">N.AIM Benchmark Assistant</span><small id="appVer"></small></h1>
+    <div class="right"><div class="tabs"><span class="on" data-p="trk">Tracker</span><span data-p="rec">Recent</span><span data-p="acc">Account</span><span data-p="vis">Settings</span></div>
+      <div class="wbtns">
+        <button class="wbtn" id="wMin" title="Minimise"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></button>
+        <button class="wbtn" id="wMax" title="Maximise"><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></button>
+        <button class="wbtn x" id="wClose" title="Close"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></button>
+      </div></div></div>
   <div class="games"><span data-g="kv" class="on">KovaaK's</span><span data-g="al">Aimlabs</span></div>
   <div class="strip"><span><i class="dot" id="kvDot"></i><b id="kvTxt">KovaaK's</b></span><span id="lastTxt">Last played: -</span><span id="lastAdd"></span><span id="updBar"></span></div>
 
@@ -465,11 +475,25 @@ async function playScenario(game,name){
 async function openPlaylist(){
   if(!bridge){toast("Desktop app only");return}
   if(!shownRows.length){toast("Nothing to put in a playlist");return}
-  const r=await call("playlist",{game:D.game,name:"Aim Tracker",scenarios:shownRows});
+  const r=await call("playlist",{game:D.game,name:"N.AIM Playlist",scenarios:shownRows});
   toast(r&&r.msg?r.msg:(r&&r.error?r.error:"Could not make the playlist"),7000);
 }
 $("plAll").onclick=openPlaylist;
 $("viewTgl").onclick=()=>{D.settings.condensed=!D.settings.condensed;applyVisuals();save();render()};
+
+// ---------- window buttons (the app draws its own title bar) ----------
+const winCmd=a=>{if(bridge)bridge.call("win",a)};
+$("wMin").onclick=()=>winCmd("min");
+$("wMax").onclick=()=>winCmd("max");
+$("wClose").onclick=()=>winCmd("close");
+$("topbar").addEventListener("mousedown",e=>{if(e.button===0&&!e.target.closest(".right"))winCmd("drag")});   // the page asks the app to start moving the window
+$("topbar").addEventListener("dblclick",e=>{if(!e.target.closest(".right"))winCmd("max")});
+function syncMaxIcon(){
+  const m=innerWidth>=screen.availWidth-14&&innerHeight>=screen.availHeight-14;
+  $("wMax").title=m?"Restore":"Maximise";
+  $("wMax").innerHTML=m?'<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2.6 2.6V0.6H9.4V7.4H7.4M0.6 2.6H7.4V9.4H0.6Z" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>':'<svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>';
+}
+window.addEventListener("resize",syncMaxIcon);
 
 // ---------- add / detect ----------
 function setGame(g){
@@ -478,7 +502,7 @@ function setGame(g){
 }
 function applyGame(){
   document.querySelectorAll(".games span").forEach(s=>s.classList.toggle("on",s.dataset.g===D.game));
-  document.title=GAMES[D.game]+" Tracker";
+  document.title="N.AIM Benchmark Assistant";
 }
 function addScenario(key,game,openEditor){
   const gd=G(game);
@@ -802,7 +826,7 @@ async function refreshRuns(g){
   try{const raw=await call("load");if(raw)D=normalize(JSON.parse(raw))}catch(e){}
   $("ksUser").value=D.ksUser||"";applyVisuals();applyGame();renderDist();render();
   if(bridge){bridge.onEvent(m=>{if(m.event==="newRun")onNewRun(m.run,m.game||"kv")});
-    appVer=(await call("version"))||"";if(appVer)$("appTitle").textContent="Aim Tracker v"+appVer;renderUpdSettings();
+    appVer=(await call("version"))||"";if(appVer)$("appVer").textContent="v"+appVer;renderUpdSettings();
     await refreshRuns("kv");await refreshRuns("al");loadAccount();fetchCategories();
     if(D.settings.autoUpdate!==false)checkUpdate(false);else $("updMsg").textContent="Version "+appVer;
     setInterval(async()=>{const s=await call("status");if(s){status=s;setKv()}},4000)}
