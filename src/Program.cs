@@ -22,12 +22,15 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: AssemblyCompany("N.AIM")]
 [assembly: AssemblyVersion(NAimBenchmarkAssistant.Meta.Version + ".0")]
 [assembly: AssemblyFileVersion(NAimBenchmarkAssistant.Meta.Version + ".0")]
+[assembly: AssemblyInformationalVersion(NAimBenchmarkAssistant.Meta.Informational)]
 
 namespace NAimBenchmarkAssistant
 {
     static class Meta
     {
-        public const string Version = "1.1.0";                       // bump this for a release
+        public const string Version = "1.1.1";                       // bump this for a release (numeric part only)
+        public const string Label = "1.1.1β";                    // what the window shows: "1.1.1β" for a beta, same as Version for a stable release
+        public const string Informational = "1.1.1-beta";            // file properties / Add-Remove Programs
         public const string Name = "N.AIM Benchmark Assistant";
         public const string Repo = "iwasmadeforhell/naim-benchmark-assistant";   // releases of this repo are the update source
         public const string SetupAsset = "NAIM-Benchmark-Assistant-Setup.exe";
@@ -834,7 +837,7 @@ namespace NAimBenchmarkAssistant
             {
                 string cmd = (string)msg["cmd"];
                 object data = msg.ContainsKey("data") ? msg["data"] : null;
-                if (cmd == "version") { Reply(msg["id"], AppVersion); return; }
+                if (cmd == "version") { Reply(msg["id"], Meta.Label); return; }
                 if (cmd == "win") { string wa = (string)data; BeginInvoke(new Action(delegate { WindowCommand(wa); })); return; }   // after this callback returns, so a window-move loop never runs inside it
                 if (cmd == "updateCheck" || cmd == "updateInstall")
                 {

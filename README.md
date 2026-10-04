@@ -59,6 +59,8 @@ Needs Windows 10/11 (64-bit). Windows 11 already includes the WebView2 runtime; 
 
 The app checks this repository's latest release when it starts. If there is a newer one it downloads `NAIM-Benchmark-Assistant-Setup.exe`, **verifies its SHA-256** against the published checksum, runs it and restarts. You can turn automatic install off (you'll get an "Update" button instead) or turn checking off entirely in **Settings -> Updates**. The app only ever downloads from this repository's releases.
 
+**Beta builds** (for example `1.1.1-beta`) are published as GitHub *pre-releases*. They are not offered by the automatic update, so stable installs are never moved to a beta by surprise; download the setup from the [releases page](../../releases) to try one.
+
 ## Build from source
 
 No Visual Studio or SDK needed, only Windows and PowerShell:
